@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 
 export default function FileRenamer({ setSharedFileNames }) {
-  // Pull the names from memory
   const [lastName, setLastName] = useState(
     () => localStorage.getItem("rn_lastName") || ""
   );
   const [firstName, setFirstName] = useState(
     () => localStorage.getItem("rn_firstName") || ""
   );
-
-  // NEW: Pull the starting number from memory (default to 1 if it's not there)
   const [startNum, setStartNum] = useState(() => {
     const savedNum = localStorage.getItem("rn_startNum");
     return savedNum !== null ? parseInt(savedNum, 10) : 1;
@@ -17,19 +14,18 @@ export default function FileRenamer({ setSharedFileNames }) {
 
   const [renamedFiles, setRenamedFiles] = useState([]);
   const fileInputRef = useRef(null);
+  const [copiedId, setCopiedId] = useState(null);
 
-  // Save names to memory when typing
   useEffect(() => {
     localStorage.setItem("rn_lastName", lastName);
     localStorage.setItem("rn_firstName", firstName);
   }, [lastName, firstName]);
 
-  // NEW: Save the starting number to memory whenever it changes
   useEffect(() => {
     localStorage.setItem("rn_startNum", startNum);
   }, [startNum]);
 
-  // Load renamed files on startup
+  // Load the history of names on startup
   useEffect(() => {
     const saved = localStorage.getItem("transcriptionRenamerData");
     if (saved) setRenamedFiles(JSON.parse(saved));
@@ -37,14 +33,18 @@ export default function FileRenamer({ setSharedFileNames }) {
 
   const saveFiles = (newFiles) => {
     setRenamedFiles(newFiles);
-    try {
-      localStorage.setItem(
-        "transcriptionRenamerData",
-        JSON.stringify(newFiles)
-      );
-    } catch (e) {
-      alert("Browser storage is full! Please clear renamed files.");
-    }
+
+    // THE FIX: We save the names to permanent storage, but NOT the heavy file data!
+    // This completely removes the 5MB storage limit error.
+    const safeDataToSave = newFiles.map((f) => ({
+      id: f.id,
+      originalName: f.originalName,
+      newName: f.newName,
+    }));
+    localStorage.setItem(
+      "transcriptionRenamerData",
+      JSON.stringify(safeDataToSave)
+    );
   };
 
   const processFiles = () => {
@@ -71,20 +71,19 @@ export default function FileRenamer({ setSharedFileNames }) {
 
       extractedNames.push(file.name);
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        newFilesList.push({
-          id: Date.now() + Math.random(),
-          originalName: file.name,
-          newName,
-          fileData: e.target.result,
-        });
-        saveFiles([...newFilesList]);
-      };
-      reader.readAsDataURL(file);
+      // THE FIX: Create a temporary RAM URL instead of heavy Base64 code
+      const fileUrl = URL.createObjectURL(file);
+
+      newFilesList.push({
+        id: Date.now() + Math.random(),
+        originalName: file.name,
+        newName,
+        fileData: fileUrl,
+      });
     });
 
-    // Teleport names to the TAT tab
+    saveFiles(newFilesList);
+
     if (extractedNames.length > 0) {
       setSharedFileNames((prev) =>
         prev
@@ -99,7 +98,6 @@ export default function FileRenamer({ setSharedFileNames }) {
 
   const deleteFile = (id) => saveFiles(renamedFiles.filter((f) => f.id !== id));
 
-  // NEW: Update Clear All to also reset the counter
   const clearAll = () => {
     if (
       window.confirm(
@@ -107,14 +105,49 @@ export default function FileRenamer({ setSharedFileNames }) {
       )
     ) {
       saveFiles([]);
-      setStartNum(1); // Resets the box back to 1
+      setStartNum(1);
     }
+  };
+
+  const copyOriginalName = (name, id) => {
+    navigator.clipboard
+      .writeText(name)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      })
+      .catch(() => alert("Failed to copy."));
   };
 
   return (
     <div className="view-section active">
       <div className="header">
-        <h2>Docx File Renamer</h2>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: "15px",
+            flexWrap: "wrap",
+          }}
+        >
+          <h2>Docx File Renamer</h2>
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLSeSEOyac74Awrgevpvi1_d4PzzakhbGvjm6qoZX9ruAs74oyQ/viewform?pli=1&pli=1"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: "var(--accent-purple)",
+              textDecoration: "none",
+              fontSize: "13px",
+              fontWeight: "600",
+              transition: "opacity 0.2s",
+            }}
+            onMouseOver={(e) => (e.target.style.opacity = 0.8)}
+            onMouseOut={(e) => (e.target.style.opacity = 1)}
+          >
+            Submit Files Form ↗
+          </a>
+        </div>
         <button className="action-btn clear-all-btn" onClick={clearAll}>
           Clear All
         </button>
@@ -138,9 +171,10 @@ export default function FileRenamer({ setSharedFileNames }) {
           placeholder="Start Num"
           value={startNum}
           onChange={(e) => setStartNum(e.target.value)}
-          style={{ maxWidth: "150px" }}
         />
+
         <div
+          className="mobile-stack"
           style={{
             width: "100%",
             marginTop: "10px",
@@ -161,7 +195,11 @@ export default function FileRenamer({ setSharedFileNames }) {
               color: "var(--text-main)",
             }}
           />
-          <button className="action-btn" onClick={processFiles}>
+          <button
+            className="action-btn"
+            onClick={processFiles}
+            style={{ width: "100%" }}
+          >
             Generate Renamed Files
           </button>
         </div>
@@ -178,17 +216,93 @@ export default function FileRenamer({ setSharedFileNames }) {
                 <strong>Renamed To:</strong> {file.newName}
               </div>
             </div>
-            <div className="file-actions">
-              <a
-                href={file.fileData}
-                download={file.newName}
+
+            <div
+              className="file-actions"
+              style={{ display: "flex", gap: "10px", alignItems: "stretch" }}
+            >
+              <button
                 className="action-btn"
+                onClick={() => copyOriginalName(file.originalName, file.id)}
+                style={{
+                  backgroundColor:
+                    copiedId === file.id
+                      ? "var(--accent-green)"
+                      : "var(--bg-panel)",
+                  color:
+                    copiedId === file.id
+                      ? "var(--bg-deep)"
+                      : "var(--text-main)",
+                  border: "1px solid var(--border-color)",
+                  fontSize: "13px",
+                  padding: "8px 12px",
+                  flex: 1,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  whiteSpace: "nowrap",
+                  boxSizing: "border-box",
+                }}
               >
-                Download
-              </a>
+                {copiedId === file.id ? "Copied! ✓" : "Copy Original"}
+              </button>
+
+              {/* UI UPDATE: If they refresh, the Download button turns into a gray "Expired" button */}
+              {file.fileData ? (
+                <a
+                  href={file.fileData}
+                  download={file.newName}
+                  className="action-btn"
+                  style={{
+                    fontSize: "13px",
+                    padding: "8px 12px",
+                    border: "1px solid transparent",
+                    flex: 1,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    whiteSpace: "nowrap",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  Download
+                </a>
+              ) : (
+                <button
+                  className="action-btn"
+                  disabled
+                  style={{
+                    fontSize: "13px",
+                    padding: "8px 12px",
+                    backgroundColor: "var(--bg-panel)",
+                    color: "var(--text-muted)",
+                    border: "1px dashed var(--border-color)",
+                    flex: 1,
+                    cursor: "not-allowed",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  Expired
+                </button>
+              )}
+
               <button
                 className="delete-btn"
                 onClick={() => deleteFile(file.id)}
+                style={{
+                  fontSize: "13px",
+                  padding: "8px 12px",
+                  flex: 1,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  whiteSpace: "nowrap",
+                  boxSizing: "border-box",
+                  margin: 0,
+                }}
               >
                 Remove
               </button>

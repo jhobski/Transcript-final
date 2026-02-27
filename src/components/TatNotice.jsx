@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
 export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
-  // Draft states
   const [link, setLink] = useState(
     () => localStorage.getItem("tat_link") || ""
   );
@@ -16,8 +15,6 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
   );
   const [output, setOutput] = useState("");
   const [copyBtnText, setCopyBtnText] = useState("Copy to Clipboard");
-
-  // History Tracker State
   const [tatHistory, setTatHistory] = useState([]);
 
   useEffect(() => {
@@ -92,15 +89,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
 
   return (
     <div className="view-section active">
-      {/* THIS IS THE CSS GRID THAT SPLITS THE SCREEN IN HALF */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-          gap: "30px",
-          alignItems: "start",
-        }}
-      >
+      <div className="tat-split-layout">
         {/* ================= LEFT COLUMN ================= */}
         <div>
           <div className="header">
@@ -131,7 +120,10 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
               onChange={(e) => setLink(e.target.value)}
             ></textarea>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div
+              className="mobile-stack"
+              style={{ display: "flex", gap: "10px", width: "100%" }}
+            >
               <input
                 type="text"
                 placeholder="Stage (e.g., FR)"
@@ -153,7 +145,15 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
               onChange={(e) => setReason(e.target.value)}
             />
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+            <div
+              className="mobile-stack"
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginTop: "10px",
+                width: "100%",
+              }}
+            >
               <button
                 className="action-btn"
                 onClick={generateNotice}
@@ -192,7 +192,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             style={{
               width: "100%",
               marginTop: "10px",
-              marginBottom: "25px",
+              marginBottom: "8px",
               fontSize: "15px",
               padding: "12px",
               backgroundColor:
@@ -205,6 +205,30 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             {copyBtnText}
           </button>
 
+          {/* UPDATE: Added the TAT submission link directly under the copy button */}
+          <div style={{ textAlign: "center", marginBottom: "25px" }}>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSdwS3iUD1V1ByUTbqcRAglDU6gjXZouL-ICg0qUg2_S0g5jKQ/viewform"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "var(--text-muted)",
+                textDecoration: "none",
+                fontSize: "13px",
+                transition: "color 0.2s",
+              }}
+              onMouseOver={(e) =>
+                (e.target.style.color = "var(--accent-purple)")
+              }
+              onMouseOut={(e) => (e.target.style.color = "var(--text-muted)")}
+            >
+              Ready to submit?{" "}
+              <strong style={{ color: "var(--accent-purple)" }}>
+                Open TAT Form ↗
+              </strong>
+            </a>
+          </div>
+
           <div className="header">
             <h2>History Tracker</h2>
             <button
@@ -216,7 +240,6 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             </button>
           </div>
 
-          {/* Adjusted the max height so it perfectly balances the columns */}
           <div
             className="table-container"
             style={{ maxHeight: "250px", marginBottom: 0 }}
