@@ -5,25 +5,23 @@ import FileRenamer from "./components/FileRenamer";
 import TatNotice from "./components/TatNotice";
 
 function App() {
-  // 1. Check memory for the last open tab, default to 'calculator' if none exists
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem("activeTab") || "calculator";
   });
 
-  // 2. Check memory for shared file names so they survive a refresh
-  const [sharedFileNames, setSharedFileNames] = useState(() => {
-    return localStorage.getItem("sharedFileNames") || "";
+  // UPDATE: Changed to an array to handle organized rows
+  const [sharedFiles, setSharedFiles] = useState(() => {
+    const saved = localStorage.getItem("sharedFiles");
+    return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
   });
 
-  // 3. Whenever the tab changes, save it to memory
   useEffect(() => {
     localStorage.setItem("activeTab", activeTab);
   }, [activeTab]);
 
-  // 4. Whenever the shared file names change, save them to memory
   useEffect(() => {
-    localStorage.setItem("sharedFileNames", sharedFileNames);
-  }, [sharedFileNames]);
+    localStorage.setItem("sharedFiles", JSON.stringify(sharedFiles));
+  }, [sharedFiles]);
 
   return (
     <div className="container">
@@ -49,14 +47,14 @@ function App() {
       </div>
 
       {activeTab === "calculator" && <AudioCalculator />}
+
+      {/* UPDATE: Passing the new sharedFiles list */}
       {activeTab === "renamer" && (
-        <FileRenamer setSharedFileNames={setSharedFileNames} />
+        <FileRenamer setSharedFiles={setSharedFiles} />
       )}
+
       {activeTab === "tat" && (
-        <TatNotice
-          sharedFileNames={sharedFileNames}
-          setSharedFileNames={setSharedFileNames}
-        />
+        <TatNotice sharedFiles={sharedFiles} setSharedFiles={setSharedFiles} />
       )}
     </div>
   );

@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
-  const [link, setLink] = useState(
-    () => localStorage.getItem("tat_link") || ""
-  );
+export default function TatNotice({ sharedFiles, setSharedFiles }) {
   const [stage, setStage] = useState(
     () => localStorage.getItem("tat_stage") || ""
   );
@@ -23,24 +20,51 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("tat_link", link);
     localStorage.setItem("tat_stage", stage);
     localStorage.setItem("tat_estimated", estimated);
     localStorage.setItem("tat_reason", reason);
-  }, [link, stage, estimated, reason]);
+  }, [stage, estimated, reason]);
 
   const saveHistory = (newHistory) => {
     setTatHistory(newHistory);
     localStorage.setItem("transcriptionTatHistory", JSON.stringify(newHistory));
   };
 
+  // UPDATE: Functions to handle the dynamic file rows
+  const handleFileChange = (index, field, value) => {
+    const updatedFiles = [...sharedFiles];
+    updatedFiles[index][field] = value;
+    setSharedFiles(updatedFiles);
+  };
+
+  const addFileRow = () => {
+    setSharedFiles([...sharedFiles, { name: "", link: "" }]);
+  };
+
+  const removeFileRow = (index) => {
+    const updatedFiles = sharedFiles.filter((_, i) => i !== index);
+    // If they delete the last row, give them a fresh empty one
+    setSharedFiles(
+      updatedFiles.length > 0 ? updatedFiles : [{ name: "", link: "" }]
+    );
+  };
+
   const generateNotice = () => {
-    if (!sharedFileNames && !link) {
+    // Filter out rows that are completely empty
+    const validFiles = sharedFiles.filter(
+      (f) => f.name.trim() !== "" || f.link.trim() !== ""
+    );
+
+    if (validFiles.length === 0) {
       alert("Please enter at least one File Name or Link.");
       return;
     }
 
-    const noticeText = `TAT Delay Notice\n\nFile Name:\n${sharedFileNames}\n\nFile Link:\n${link}\n\nWorkflow Stage: ${stage}\nEstimated TAT: ${estimated}\nReason: ${reason}`;
+    // Combine all names and links into the Discord format
+    const namesText = validFiles.map((f) => f.name).join("\n");
+    const linksText = validFiles.map((f) => f.link).join("\n");
+
+    const noticeText = `TAT Delay Notice\n\nFile Name:\n${namesText}\n\nFile Link:\n${linksText}\n\nWorkflow Stage: ${stage}\nEstimated TAT: ${estimated}\nReason: ${reason}`;
     setOutput(noticeText);
 
     const newEntry = {
@@ -49,7 +73,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      filenames: sharedFileNames,
+      filenames: namesText, // Save the combined string to history so it looks right
       stage: stage,
       fullText: noticeText,
     };
@@ -70,8 +94,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
 
   const clearDraft = () => {
     if (window.confirm("Clear the current draft?")) {
-      setSharedFileNames("");
-      setLink("");
+      setSharedFiles([{ name: "", link: "" }]); // Resets to one empty row
       setStage("");
       setEstimated("");
       setReason("");
@@ -95,30 +118,86 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
           <div className="header">
             <h2>TAT Notice Generator</h2>
           </div>
-          <p
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "13px",
-              marginTop: 0,
-              marginBottom: "15px",
-            }}
-          >
-            File names automatically import from the Renamer tab.
-          </p>
 
-          <div className="vertical-group" style={{ marginBottom: 0 }}>
-            <textarea
-              rows="4"
-              placeholder="File Names..."
-              value={sharedFileNames}
-              onChange={(e) => setSharedFileNames(e.target.value)}
-            ></textarea>
-            <textarea
-              rows="4"
-              placeholder="File Links..."
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-            ></textarea>
+          <div
+            className="vertical-group"
+            style={{ marginBottom: 0, padding: "15px" }}
+          >
+            {/* UPDATE: The Dynamic Rows UI */}
+            <div
+              style={{
+                maxHeight: "280px",
+                overflowY: "auto",
+                paddingRight: "5px",
+                marginBottom: "10px",
+              }}
+            >
+              {sharedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginBottom: "15px",
+                    alignItems: "center",
+                    backgroundColor: "var(--bg-deep)",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder={`File ${index + 1} Name`}
+                      value={file.name}
+                      onChange={(e) =>
+                        handleFileChange(index, "name", e.target.value)
+                      }
+                      style={{ padding: "8px", fontSize: "13px" }}
+                    />
+                    <input
+                      type="text"
+                      placeholder={`File ${index + 1} Link`}
+                      value={file.link}
+                      onChange={(e) =>
+                        handleFileChange(index, "link", e.target.value)
+                      }
+                      style={{ padding: "8px", fontSize: "13px" }}
+                    />
+                  </div>
+                  <button
+                    className="delete-btn"
+                    onClick={() => removeFileRow(index)}
+                    style={{ padding: "12px 10px", height: "100%" }}
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="action-btn"
+              onClick={addFileRow}
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--text-muted)",
+                border: "1px dashed #585b70",
+                width: "100%",
+                marginBottom: "15px",
+                padding: "8px",
+              }}
+            >
+              + Add Another File
+            </button>
 
             <div
               className="mobile-stack"
@@ -143,6 +222,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
               placeholder="Reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              style={{ marginTop: "10px" }}
             />
 
             <div
@@ -150,7 +230,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
               style={{
                 display: "flex",
                 gap: "10px",
-                marginTop: "10px",
+                marginTop: "15px",
                 width: "100%",
               }}
             >
@@ -205,7 +285,6 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             {copyBtnText}
           </button>
 
-          {/* UPDATE: Added the TAT submission link directly under the copy button */}
           <div style={{ textAlign: "center", marginBottom: "25px" }}>
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSdwS3iUD1V1ByUTbqcRAglDU6gjXZouL-ICg0qUg2_S0g5jKQ/viewform"
@@ -217,10 +296,6 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
                 fontSize: "13px",
                 transition: "color 0.2s",
               }}
-              onMouseOver={(e) =>
-                (e.target.style.color = "var(--accent-purple)")
-              }
-              onMouseOut={(e) => (e.target.style.color = "var(--text-muted)")}
             >
               Ready to submit?{" "}
               <strong style={{ color: "var(--accent-purple)" }}>

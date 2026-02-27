@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-export default function FileRenamer({ setSharedFileNames }) {
+export default function FileRenamer({ setSharedFiles }) {
   const [lastName, setLastName] = useState(
     () => localStorage.getItem("rn_lastName") || ""
   );
@@ -25,7 +25,6 @@ export default function FileRenamer({ setSharedFileNames }) {
     localStorage.setItem("rn_startNum", startNum);
   }, [startNum]);
 
-  // Load the history of names on startup
   useEffect(() => {
     const saved = localStorage.getItem("transcriptionRenamerData");
     if (saved) setRenamedFiles(JSON.parse(saved));
@@ -33,13 +32,12 @@ export default function FileRenamer({ setSharedFileNames }) {
 
   const saveFiles = (newFiles) => {
     setRenamedFiles(newFiles);
-
-    // THE FIX: We save the names to permanent storage, but NOT the heavy file data!
-    // This completely removes the 5MB storage limit error.
+    // THE UPDATE: We make sure the generatedAt timestamp is permanently saved to memory
     const safeDataToSave = newFiles.map((f) => ({
       id: f.id,
       originalName: f.originalName,
       newName: f.newName,
+      generatedAt: f.generatedAt,
     }));
     localStorage.setItem(
       "transcriptionRenamerData",
@@ -64,6 +62,17 @@ export default function FileRenamer({ setSharedFileNames }) {
 
     let extractedNames = [];
 
+    // THE FIX: Generate the exact Philippine Time format
+    const phTime = new Date().toLocaleString("en-US", {
+      timeZone: "Asia/Manila",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
     Array.from(files).forEach((file) => {
       if (!file.name.toLowerCase().endsWith(".docx")) return;
       const newName = `${dateString} - ${lastName}, ${firstName} - ${currentNum}.docx`;
@@ -71,25 +80,29 @@ export default function FileRenamer({ setSharedFileNames }) {
 
       extractedNames.push(file.name);
 
-      // THE FIX: Create a temporary RAM URL instead of heavy Base64 code
       const fileUrl = URL.createObjectURL(file);
-
       newFilesList.push({
         id: Date.now() + Math.random(),
         originalName: file.name,
         newName,
         fileData: fileUrl,
+        generatedAt: phTime, // Save the timestamp to this specific file
       });
     });
 
     saveFiles(newFilesList);
 
     if (extractedNames.length > 0) {
-      setSharedFileNames((prev) =>
-        prev
-          ? prev + "\n" + extractedNames.join("\n")
-          : extractedNames.join("\n")
-      );
+      const newSharedObjects = extractedNames.map((name) => ({
+        name: name,
+        link: "",
+      }));
+      setSharedFiles((prev) => {
+        const filtered = prev.filter(
+          (f) => f.name.trim() !== "" || f.link.trim() !== ""
+        );
+        return [...filtered, ...newSharedObjects];
+      });
     }
 
     setStartNum(currentNum);
@@ -142,8 +155,6 @@ export default function FileRenamer({ setSharedFileNames }) {
               fontWeight: "600",
               transition: "opacity 0.2s",
             }}
-            onMouseOver={(e) => (e.target.style.opacity = 0.8)}
-            onMouseOut={(e) => (e.target.style.opacity = 1)}
           >
             Submit Files Form ↗
           </a>
@@ -215,6 +226,20 @@ export default function FileRenamer({ setSharedFileNames }) {
               <div className="new-name">
                 <strong>Renamed To:</strong> {file.newName}
               </div>
+
+              {/* THE UPDATE: Displaying the Philippine timestamp here */}
+              {file.generatedAt && (
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                    marginTop: "6px",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Generated: {file.generatedAt}
+                </div>
+              )}
             </div>
 
             <div
@@ -237,17 +262,11 @@ export default function FileRenamer({ setSharedFileNames }) {
                   fontSize: "13px",
                   padding: "8px 12px",
                   flex: 1,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  whiteSpace: "nowrap",
-                  boxSizing: "border-box",
                 }}
               >
                 {copiedId === file.id ? "Copied! ✓" : "Copy Original"}
               </button>
 
-              {/* UI UPDATE: If they refresh, the Download button turns into a gray "Expired" button */}
               {file.fileData ? (
                 <a
                   href={file.fileData}
@@ -261,15 +280,12 @@ export default function FileRenamer({ setSharedFileNames }) {
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    whiteSpace: "nowrap",
-                    boxSizing: "border-box",
                   }}
                 >
                   Download
                 </a>
               ) : (
                 <button
-                  className="action-btn"
                   disabled
                   style={{
                     fontSize: "13px",
@@ -278,11 +294,6 @@ export default function FileRenamer({ setSharedFileNames }) {
                     color: "var(--text-muted)",
                     border: "1px dashed var(--border-color)",
                     flex: 1,
-                    cursor: "not-allowed",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    boxSizing: "border-box",
                   }}
                 >
                   Expired
@@ -292,17 +303,7 @@ export default function FileRenamer({ setSharedFileNames }) {
               <button
                 className="delete-btn"
                 onClick={() => deleteFile(file.id)}
-                style={{
-                  fontSize: "13px",
-                  padding: "8px 12px",
-                  flex: 1,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  whiteSpace: "nowrap",
-                  boxSizing: "border-box",
-                  margin: 0,
-                }}
+                style={{ fontSize: "13px", padding: "8px 12px", flex: 1 }}
               >
                 Remove
               </button>
