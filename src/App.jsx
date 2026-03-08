@@ -3,31 +3,48 @@ import "./index.css";
 import AudioCalculator from "./components/AudioCalculator";
 import FileRenamer from "./components/FileRenamer";
 import TatNotice from "./components/TatNotice";
+import RevertRequest from "./components/RevertRequest";
+import NonEnglish from "./components/NonEnglish";
 
 function App() {
-  // 1. Check memory for the last open tab, default to 'calculator' if none exists
-  const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem("activeTab") || "calculator";
+  const [activeTab, setActiveTab] = useState(
+    () => localStorage.getItem("activeTab") || "calculator"
+  );
+
+  const [sharedFiles, setSharedFiles] = useState(() => {
+    const saved = localStorage.getItem("sharedFiles");
+    return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
   });
 
-  // 2. Check memory for shared file names so they survive a refresh
-  const [sharedFileNames, setSharedFileNames] = useState(() => {
-    return localStorage.getItem("sharedFileNames") || "";
+  // NEW: Global memory for Revert and Non-English files
+  const [revertFiles, setRevertFiles] = useState(() => {
+    const saved = localStorage.getItem("revertFiles");
+    return saved ? JSON.parse(saved) : [{ name: "" }];
   });
 
-  // 3. Whenever the tab changes, save it to memory
-  useEffect(() => {
-    localStorage.setItem("activeTab", activeTab);
-  }, [activeTab]);
+  const [nonEngFiles, setNonEngFiles] = useState(() => {
+    const saved = localStorage.getItem("nonEngFiles");
+    return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
+  });
 
-  // 4. Whenever the shared file names change, save them to memory
-  useEffect(() => {
-    localStorage.setItem("sharedFileNames", sharedFileNames);
-  }, [sharedFileNames]);
+  useEffect(() => localStorage.setItem("activeTab", activeTab), [activeTab]);
+  useEffect(
+    () => localStorage.setItem("sharedFiles", JSON.stringify(sharedFiles)),
+    [sharedFiles]
+  );
+  useEffect(
+    () => localStorage.setItem("revertFiles", JSON.stringify(revertFiles)),
+    [revertFiles]
+  );
+  useEffect(
+    () => localStorage.setItem("nonEngFiles", JSON.stringify(nonEngFiles)),
+    [nonEngFiles]
+  );
 
   return (
     <div className="container">
-      <div className="tabs">
+      {/* Added flexWrap so the 5 buttons stack neatly on mobile */}
+      <div className="tabs" style={{ flexWrap: "wrap" }}>
         <button
           className={`tab-btn ${activeTab === "calculator" ? "active" : ""}`}
           onClick={() => setActiveTab("calculator")}
@@ -46,17 +63,42 @@ function App() {
         >
           TAT Delay Notice
         </button>
+        <button
+          className={`tab-btn ${activeTab === "revert" ? "active" : ""}`}
+          onClick={() => setActiveTab("revert")}
+        >
+          Revert Request
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "nonenglish" ? "active" : ""}`}
+          onClick={() => setActiveTab("nonenglish")}
+        >
+          Non-English
+        </button>
       </div>
 
       {activeTab === "calculator" && <AudioCalculator />}
+
+      {/* Pass all the teleport functions down to the Renamer */}
       {activeTab === "renamer" && (
-        <FileRenamer setSharedFileNames={setSharedFileNames} />
-      )}
-      {activeTab === "tat" && (
-        <TatNotice
-          sharedFileNames={sharedFileNames}
-          setSharedFileNames={setSharedFileNames}
+        <FileRenamer
+          setSharedFiles={setSharedFiles}
+          setRevertFiles={setRevertFiles}
+          setNonEngFiles={setNonEngFiles}
         />
+      )}
+
+      {activeTab === "tat" && (
+        <TatNotice sharedFiles={sharedFiles} setSharedFiles={setSharedFiles} />
+      )}
+      {activeTab === "revert" && (
+        <RevertRequest
+          revertFiles={revertFiles}
+          setRevertFiles={setRevertFiles}
+        />
+      )}
+      {activeTab === "nonenglish" && (
+        <NonEnglish nonEngFiles={nonEngFiles} setNonEngFiles={setNonEngFiles} />
       )}
     </div>
   );

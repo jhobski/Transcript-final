@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
-  // Draft states
-  const [link, setLink] = useState(
-    () => localStorage.getItem("tat_link") || ""
-  );
+export default function TatNotice({ sharedFiles, setSharedFiles }) {
   const [stage, setStage] = useState(
     () => localStorage.getItem("tat_stage") || ""
   );
@@ -15,10 +11,16 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
     () => localStorage.getItem("tat_reason") || ""
   );
   const [output, setOutput] = useState("");
-  const [copyBtnText, setCopyBtnText] = useState("Copy to Clipboard");
-
-  // History Tracker State
+  const [copyBtnText, setCopyBtnText] = useState("Copy Discord Notice");
   const [tatHistory, setTatHistory] = useState([]);
+
+  // State to track which specific form field was just copied
+  const [copiedField, setCopiedField] = useState(null);
+
+  // Pull your first and last name from memory to format as "First Last"
+  const editorName = `${localStorage.getItem("rn_firstName") || ""} ${
+    localStorage.getItem("rn_lastName") || ""
+  }`.trim();
 
   useEffect(() => {
     const savedHistory = localStorage.getItem("transcriptionTatHistory");
@@ -26,24 +28,47 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("tat_link", link);
     localStorage.setItem("tat_stage", stage);
     localStorage.setItem("tat_estimated", estimated);
     localStorage.setItem("tat_reason", reason);
-  }, [link, stage, estimated, reason]);
+  }, [stage, estimated, reason]);
 
   const saveHistory = (newHistory) => {
     setTatHistory(newHistory);
     localStorage.setItem("transcriptionTatHistory", JSON.stringify(newHistory));
   };
 
+  const handleFileChange = (index, field, value) => {
+    const updatedFiles = [...sharedFiles];
+    updatedFiles[index][field] = value;
+    setSharedFiles(updatedFiles);
+  };
+
+  const addFileRow = () => {
+    setSharedFiles([...sharedFiles, { name: "", link: "" }]);
+  };
+
+  const removeFileRow = (index) => {
+    const updatedFiles = sharedFiles.filter((_, i) => i !== index);
+    setSharedFiles(
+      updatedFiles.length > 0 ? updatedFiles : [{ name: "", link: "" }]
+    );
+  };
+
   const generateNotice = () => {
-    if (!sharedFileNames && !link) {
+    const validFiles = sharedFiles.filter(
+      (f) => f.name.trim() !== "" || f.link.trim() !== ""
+    );
+
+    if (validFiles.length === 0) {
       alert("Please enter at least one File Name or Link.");
       return;
     }
 
-    const noticeText = `TAT Delay Notice\n\nFile Name:\n${sharedFileNames}\n\nFile Link:\n${link}\n\nWorkflow Stage: ${stage}\nEstimated TAT: ${estimated}\nReason: ${reason}`;
+    const namesText = validFiles.map((f) => f.name).join("\n");
+    const linksText = validFiles.map((f) => f.link).join("\n");
+
+    const noticeText = `TAT Delay Notice\n\nFile Name:\n${namesText}\n\nFile Link:\n${linksText}\n\nWorkflow Stage: ${stage}\nEstimated TAT: ${estimated}\nReason: ${reason}`;
     setOutput(noticeText);
 
     const newEntry = {
@@ -52,7 +77,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      filenames: sharedFileNames,
+      filenames: namesText,
       stage: stage,
       fullText: noticeText,
     };
@@ -60,21 +85,33 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
   };
 
   const copyNotice = (textToCopy = output) => {
-    if (!textToCopy) return alert("Nothing to copy!");
+    if (!textToCopy) return alert("Nothing to copy! Generate a notice first.");
 
     navigator.clipboard
       .writeText(textToCopy)
       .then(() => {
         setCopyBtnText("Copied! ✓");
-        setTimeout(() => setCopyBtnText("Copy to Clipboard"), 2000);
+        setTimeout(() => setCopyBtnText("Copy Discord Notice"), 2000);
+      })
+      .catch(() => alert("Failed to copy."));
+  };
+
+  const copyForForm = (text, fieldId) => {
+    if (!text || text.trim() === "") {
+      return alert(`Nothing to copy for this field!`);
+    }
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedField(fieldId);
+        setTimeout(() => setCopiedField(null), 2000);
       })
       .catch(() => alert("Failed to copy."));
   };
 
   const clearDraft = () => {
     if (window.confirm("Clear the current draft?")) {
-      setSharedFileNames("");
-      setLink("");
+      setSharedFiles([{ name: "", link: "" }]);
       setStage("");
       setEstimated("");
       setReason("");
@@ -90,48 +127,121 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
       saveHistory([]);
   };
 
+  // Helper to filter out empty rows for our Quick Copy list
+  const validFiles = sharedFiles.filter(
+    (f) => f.name.trim() !== "" || f.link.trim() !== ""
+  );
+
+  // Helper function to keep button styling clean
+  const getCopyBtnStyle = (fieldId) => ({
+    fontSize: "12px",
+    padding: "8px",
+    backgroundColor:
+      copiedField === fieldId ? "var(--accent-green)" : "var(--bg-panel)",
+    color: copiedField === fieldId ? "var(--bg-deep)" : "var(--text-main)",
+    border: "1px solid var(--border-color)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    borderRadius: "6px",
+    fontFamily: "inherit",
+    fontWeight: "bold",
+    transition: "all 0.2s",
+  });
+
   return (
     <div className="view-section active">
-      {/* THIS IS THE CSS GRID THAT SPLITS THE SCREEN IN HALF */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-          gap: "30px",
-          alignItems: "start",
-        }}
-      >
+      <div className="tat-split-layout">
         {/* ================= LEFT COLUMN ================= */}
         <div>
           <div className="header">
             <h2>TAT Notice Generator</h2>
           </div>
-          <p
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "13px",
-              marginTop: 0,
-              marginBottom: "15px",
-            }}
+
+          <div
+            className="vertical-group"
+            style={{ marginBottom: 0, padding: "15px" }}
           >
-            File names automatically import from the Renamer tab.
-          </p>
+            <div
+              style={{
+                maxHeight: "280px",
+                overflowY: "auto",
+                paddingRight: "5px",
+                marginBottom: "10px",
+              }}
+            >
+              {sharedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginBottom: "15px",
+                    alignItems: "center",
+                    backgroundColor: "var(--bg-deep)",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder={`File ${index + 1} Name`}
+                      value={file.name}
+                      onChange={(e) =>
+                        handleFileChange(index, "name", e.target.value)
+                      }
+                      style={{ padding: "8px", fontSize: "13px" }}
+                    />
+                    <input
+                      type="text"
+                      placeholder={`File ${index + 1} Link`}
+                      value={file.link}
+                      onChange={(e) =>
+                        handleFileChange(index, "link", e.target.value)
+                      }
+                      style={{ padding: "8px", fontSize: "13px" }}
+                    />
+                  </div>
+                  <button
+                    className="delete-btn"
+                    onClick={() => removeFileRow(index)}
+                    style={{ padding: "12px 10px", height: "100%" }}
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
 
-          <div className="vertical-group" style={{ marginBottom: 0 }}>
-            <textarea
-              rows="4"
-              placeholder="File Names..."
-              value={sharedFileNames}
-              onChange={(e) => setSharedFileNames(e.target.value)}
-            ></textarea>
-            <textarea
-              rows="4"
-              placeholder="File Links..."
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-            ></textarea>
+            <button
+              className="action-btn"
+              onClick={addFileRow}
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--text-muted)",
+                border: "1px dashed #585b70",
+                width: "100%",
+                marginBottom: "15px",
+                padding: "8px",
+              }}
+            >
+              + Add Another File
+            </button>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div
+              className="mobile-stack"
+              style={{ display: "flex", gap: "10px", width: "100%" }}
+            >
               <input
                 type="text"
                 placeholder="Stage (e.g., FR)"
@@ -151,9 +261,18 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
               placeholder="Reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              style={{ marginTop: "10px" }}
             />
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+            <div
+              className="mobile-stack"
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginTop: "15px",
+                width: "100%",
+              }}
+            >
               <button
                 className="action-btn"
                 onClick={generateNotice}
@@ -179,7 +298,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
           </div>
 
           <textarea
-            rows="7"
+            rows="6"
             readOnly
             placeholder="Your generated notice will appear here..."
             value={output}
@@ -192,7 +311,7 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             style={{
               width: "100%",
               marginTop: "10px",
-              marginBottom: "25px",
+              marginBottom: "20px",
               fontSize: "15px",
               padding: "12px",
               backgroundColor:
@@ -205,6 +324,148 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             {copyBtnText}
           </button>
 
+          {/* UPDATED: Form Quick Copy Tools Panel */}
+          <div
+            style={{
+              backgroundColor: "var(--bg-input)",
+              padding: "15px",
+              borderRadius: "8px",
+              border: "1px solid var(--border-color)",
+              marginBottom: "20px",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "13px",
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Form Quick Copy Tools
+            </h3>
+
+            {/* Global Settings (Name and Reason) */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+                marginBottom: "15px",
+              }}
+            >
+              <button
+                onClick={() => copyForForm(editorName, "global_name")}
+                style={getCopyBtnStyle("global_name")}
+              >
+                {copiedField === "global_name" ? "Copied!" : "Copy My Name"}
+              </button>
+              <button
+                onClick={() => copyForForm(reason, "global_reason")}
+                style={getCopyBtnStyle("global_reason")}
+              >
+                {copiedField === "global_reason" ? "Copied!" : "Copy Reason"}
+              </button>
+            </div>
+
+            {/* Individual File Loop */}
+            {validFiles.length > 0 && (
+              <div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "8px",
+                    borderBottom: "1px solid var(--border-color)",
+                    paddingBottom: "4px",
+                  }}
+                >
+                  Individual Files (Submit form for each)
+                </div>
+                <div
+                  style={{
+                    maxHeight: "160px",
+                    overflowY: "auto",
+                    paddingRight: "5px",
+                  }}
+                >
+                  {validFiles.map((f, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        marginBottom: "10px",
+                        backgroundColor: "var(--bg-deep)",
+                        padding: "10px",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          marginBottom: "8px",
+                          color: "var(--text-main)",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {f.name
+                          ? f.name.substring(0, 30) +
+                            (f.name.length > 30 ? "..." : "")
+                          : `File ${i + 1}`}
+                      </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "8px",
+                        }}
+                      >
+                        <button
+                          onClick={() => copyForForm(f.name, `file_name_${i}`)}
+                          style={getCopyBtnStyle(`file_name_${i}`)}
+                        >
+                          {copiedField === `file_name_${i}`
+                            ? "Copied!"
+                            : "Copy File Name"}
+                        </button>
+                        <button
+                          onClick={() => copyForForm(f.link, `file_link_${i}`)}
+                          style={getCopyBtnStyle(`file_link_${i}`)}
+                        >
+                          {copiedField === `file_link_${i}`
+                            ? "Copied!"
+                            : "Copy Link"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ textAlign: "center", marginBottom: "25px" }}>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSdwS3iUD1V1ByUTbqcRAglDU6gjXZouL-ICg0qUg2_S0g5jKQ/viewform"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "var(--text-muted)",
+                textDecoration: "none",
+                fontSize: "13px",
+                transition: "color 0.2s",
+              }}
+            >
+              Ready to submit?{" "}
+              <strong style={{ color: "var(--accent-purple)" }}>
+                Open TAT Form ↗
+              </strong>
+            </a>
+          </div>
+
           <div className="header">
             <h2>History Tracker</h2>
             <button
@@ -216,10 +477,9 @@ export default function TatNotice({ sharedFileNames, setSharedFileNames }) {
             </button>
           </div>
 
-          {/* Adjusted the max height so it perfectly balances the columns */}
           <div
             className="table-container"
-            style={{ maxHeight: "250px", marginBottom: 0 }}
+            style={{ maxHeight: "200px", marginBottom: 0 }}
           >
             <table>
               <thead>

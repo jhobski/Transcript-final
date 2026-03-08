@@ -1,42 +1,120 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* =========================================================
+   GLOBAL RESPONSIVE SAFEGUARDS
+========================================================= */
+/* 1. Forces all padding and borders to stay inside the box width */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* 2. Prevents the entire website from glitching sideways on mobile */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* 3. The Grid Layout for TAT, Revert, and Non-Eng Tabs */
+.tat-split-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+  align-items: start;
+  width: 100%;
+}
+
+/* Stops grid columns from blowing out the screen width */
+.tat-split-layout > div {
+  min-width: 0;
+  width: 100%;
+}
+
+/* 4. Keeps Data Tables strictly contained with a smooth mobile scrollbar */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  min-width: 600px; /* Forces scrollbar if screen is smaller than 600px */
+}
+
+/* =========================================================
+   MOBILE SPECIFIC RULES (Phones & Small Tablets)
+========================================================= */
+@media (max-width: 768px) {
+  /* Make all main containers strictly respect the screen edges */
+  .container,
+  .view-section,
+  .input-group,
+  .vertical-group {
+    padding: 12px !important;
+    width: 100%;
+    max-width: 100vw;
   }
-  to {
-    transform: rotate(360deg);
+
+  /* Make navigation tabs stack neatly like a menu */
+  .tabs {
+    flex-direction: column !important;
+    gap: 8px;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .tab-btn {
+    width: 100%;
+    text-align: center;
+    border-radius: 6px;
   }
-}
 
-.card {
-  padding: 2em;
-}
+  /* Force side-by-side inputs to stack on top of each other */
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .mobile-stack > * {
+    width: 100% !important;
+    margin: 0 !important; /* Removes gap issues */
+  }
 
-.read-the-docs {
-  color: #888;
+  /* Force the Split Layout into a single column */
+  .tat-split-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  /* Fix the Renamer List layout */
+  .renamer-list li {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* Stack the "Copy / Download / Remove" buttons vertically on small screens */
+  .file-actions {
+    flex-direction: column !important;
+  }
+
+  /* Quick Route Buttons Wrap neatly */
+  .file-actions > div {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Ensure textareas and inputs don't stretch */
+  input,
+  textarea,
+  select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Adjust header layouts */
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
