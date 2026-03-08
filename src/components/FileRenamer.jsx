@@ -74,10 +74,6 @@ export default function FileRenamer({
   const [copiedId, setCopiedId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
 
-  // NEW: Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
   useEffect(() => {
     localStorage.setItem("rn_lastName", lastName);
     localStorage.setItem("rn_firstName", firstName);
@@ -124,6 +120,7 @@ export default function FileRenamer({
       const newName = `${dateStr} - ${lastName}, ${firstName} - ${currentNum}.docx`;
       currentNum++;
 
+      // THE FIX: Automatically chop off the .docx for the bulk auto-import
       const baseName =
         file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
       extractedNames.push(baseName);
@@ -154,12 +151,8 @@ export default function FileRenamer({
         ];
       });
     }
-
     setStartNum(currentNum);
     fileInputRef.current.value = "";
-
-    // SNAP TO PAGE 1: Whenever you generate new files, jump back to page 1 to see them!
-    setCurrentPage(1);
   };
 
   const handleDownload = async (id, newName) => {
@@ -178,13 +171,11 @@ export default function FileRenamer({
     await deleteFromVault(id);
     saveFilesMetadata(renamedFiles.filter((f) => f.id !== id));
   };
-
   const clearAll = async () => {
     if (window.confirm("Are you sure you want to clear all renamed files?")) {
       await clearVault();
       saveFilesMetadata([]);
       setStartNum(1);
-      setCurrentPage(1);
     }
   };
 
@@ -199,9 +190,11 @@ export default function FileRenamer({
       .catch(() => alert("Failed to copy."));
   };
 
+  // NEW: The routing function for the mini-buttons
   const routeFile = (originalName, destination) => {
     const baseName =
       originalName.substring(0, originalName.lastIndexOf(".")) || originalName;
+
     if (destination === "tat") {
       setSharedFiles((prev) => [
         ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
@@ -223,7 +216,6 @@ export default function FileRenamer({
     }
   };
 
-  // --- SORTING & PAGINATION LOGIC ---
   const sortedFiles = [...renamedFiles].sort((a, b) => {
     if (sortBy === "latest") return b.id.localeCompare(a.id);
     if (sortBy === "oldest") return a.id.localeCompare(b.id);
@@ -233,20 +225,6 @@ export default function FileRenamer({
       return b.originalName.localeCompare(a.originalName);
     return 0;
   });
-
-  // Calculate current items to display based on pagination
-  const totalPages = Math.ceil(sortedFiles.length / rowsPerPage) || 1;
-
-  // Safety check: if they delete items and the current page becomes empty, jump back a page
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [sortedFiles.length, totalPages, currentPage]);
-
-  const indexOfLastFile = currentPage * rowsPerPage;
-  const indexOfFirstFile = indexOfLastFile - rowsPerPage;
-  const currentFiles = sortedFiles.slice(indexOfFirstFile, indexOfLastFile);
 
   return (
     <div className="view-section active">
@@ -347,10 +325,7 @@ export default function FileRenamer({
           </label>
           <select
             value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => setSortBy(e.target.value)}
             style={{
               padding: "6px 10px",
               borderRadius: "6px",
@@ -370,11 +345,7 @@ export default function FileRenamer({
         </div>
       </div>
 
-      {/* Render the paginated chunk (currentFiles) instead of the full list */}
-      <div
-        className="table-container"
-        style={{ maxHeight: "none", overflowY: "visible" }}
-      >
+      <div className="table-container" style={{ maxHeight: "400px" }}>
         <table>
           <thead>
             <tr>
@@ -384,21 +355,17 @@ export default function FileRenamer({
             </tr>
           </thead>
           <tbody>
-            {currentFiles.length === 0 ? (
+            {sortedFiles.length === 0 ? (
               <tr>
                 <td
                   colSpan="3"
-                  style={{
-                    textAlign: "center",
-                    color: "var(--text-muted)",
-                    padding: "20px",
-                  }}
+                  style={{ textAlign: "center", color: "var(--text-muted)" }}
                 >
                   No files processed yet.
                 </td>
               </tr>
             ) : (
-              currentFiles.map((file) => (
+              sortedFiles.map((file) => (
                 <tr key={file.id}>
                   <td>
                     <div style={{ fontWeight: "bold" }}>
@@ -487,6 +454,7 @@ export default function FileRenamer({
                         </button>
                       </div>
 
+                      {/* NEW: Quick Route Panel */}
                       <div
                         style={{
                           display: "flex",
@@ -557,92 +525,6 @@ export default function FileRenamer({
           </tbody>
         </table>
       </div>
-
-      {/* NEW: Pagination Controls */}
-      {sortedFiles.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: "15px",
-            padding: "12px 15px",
-            backgroundColor: "var(--bg-panel)",
-            borderRadius: "8px",
-            border: "1px solid var(--border-color)",
-            flexWrap: "wrap",
-            gap: "10px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              Show:
-            </span>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: "4px 8px",
-                borderRadius: "4px",
-                backgroundColor: "var(--bg-input)",
-                color: "var(--text-main)",
-                border: "1px solid var(--border-color)",
-                fontSize: "12px",
-                outline: "none",
-                cursor: "pointer",
-              }}
-            >
-              <option value={5}>5 files</option>
-              <option value={10}>10 files</option>
-              <option value={20}>20 files</option>
-              <option value={50}>50 files</option>
-            </select>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <button
-              className="action-btn"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-              style={{
-                padding: "6px 12px",
-                fontSize: "12px",
-                opacity: currentPage === 1 ? 0.5 : 1,
-                cursor: currentPage === 1 ? "not-allowed" : "pointer",
-              }}
-            >
-              Prev
-            </button>
-
-            <span
-              style={{
-                fontSize: "12px",
-                color: "var(--text-main)",
-                fontWeight: "bold",
-              }}
-            >
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <button
-              className="action-btn"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              style={{
-                padding: "6px 12px",
-                fontSize: "12px",
-                opacity: currentPage === totalPages ? 0.5 : 1,
-                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-              }}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
