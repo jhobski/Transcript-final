@@ -74,7 +74,7 @@ export default function FileRenamer({
   const [copiedId, setCopiedId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
 
-  // NEW: Pagination State
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -157,8 +157,6 @@ export default function FileRenamer({
 
     setStartNum(currentNum);
     fileInputRef.current.value = "";
-
-    // SNAP TO PAGE 1: Whenever you generate new files, jump back to page 1 to see them!
     setCurrentPage(1);
   };
 
@@ -199,16 +197,11 @@ export default function FileRenamer({
       .catch(() => alert("Failed to copy."));
   };
 
+  // UPDATE: Removed TAT from the routing options
   const routeFile = (originalName, destination) => {
     const baseName =
       originalName.substring(0, originalName.lastIndexOf(".")) || originalName;
-    if (destination === "tat") {
-      setSharedFiles((prev) => [
-        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
-        { name: baseName, link: "" },
-      ]);
-      alert(`Sent "${baseName}" to TAT Notice!`);
-    } else if (destination === "revert") {
+    if (destination === "revert") {
       setRevertFiles((prev) => [
         ...prev.filter((f) => f.name.trim() !== ""),
         { name: baseName },
@@ -234,10 +227,8 @@ export default function FileRenamer({
     return 0;
   });
 
-  // Calculate current items to display based on pagination
   const totalPages = Math.ceil(sortedFiles.length / rowsPerPage) || 1;
 
-  // Safety check: if they delete items and the current page becomes empty, jump back a page
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
@@ -370,7 +361,6 @@ export default function FileRenamer({
         </div>
       </div>
 
-      {/* Render the paginated chunk (currentFiles) instead of the full list */}
       <div
         className="table-container"
         style={{ maxHeight: "none", overflowY: "visible" }}
@@ -487,6 +477,7 @@ export default function FileRenamer({
                         </button>
                       </div>
 
+                      {/* UPDATE: Removed TAT from the quick route buttons */}
                       <div
                         style={{
                           display: "flex",
@@ -506,20 +497,6 @@ export default function FileRenamer({
                         >
                           Route To:
                         </span>
-                        <button
-                          className="action-btn"
-                          onClick={() => routeFile(file.originalName, "tat")}
-                          style={{
-                            fontSize: "11px",
-                            padding: "4px",
-                            backgroundColor: "transparent",
-                            color: "var(--accent-purple)",
-                            border: "1px solid var(--border-color)",
-                            flex: 1,
-                          }}
-                        >
-                          TAT
-                        </button>
                         <button
                           className="action-btn"
                           onClick={() => routeFile(file.originalName, "revert")}
@@ -558,7 +535,6 @@ export default function FileRenamer({
         </table>
       </div>
 
-      {/* NEW: Pagination Controls */}
       {sortedFiles.length > 0 && (
         <div
           style={{

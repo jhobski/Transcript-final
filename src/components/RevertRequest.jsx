@@ -19,26 +19,36 @@ export default function RevertRequest({ revertFiles, setRevertFiles }) {
     localStorage.setItem("rev_reason", reason);
   }, [currentStage, targetStage, reason]);
 
-  const handleFileChange = (index, value) => {
+  // UPDATE: Added 'field' parameter to handle both name and link
+  const handleFileChange = (index, field, value) => {
     const updated = [...revertFiles];
-    updated[index].name = value;
+    updated[index][field] = value;
     setRevertFiles(updated);
   };
 
-  const addFileRow = () => setRevertFiles([...revertFiles, { name: "" }]);
+  // UPDATE: Now adds empty rows with both a name and a link
+  const addFileRow = () =>
+    setRevertFiles([...revertFiles, { name: "", link: "" }]);
 
   const removeFileRow = (index) => {
     const updated = revertFiles.filter((_, i) => i !== index);
-    setRevertFiles(updated.length > 0 ? updated : [{ name: "" }]);
+    setRevertFiles(updated.length > 0 ? updated : [{ name: "", link: "" }]);
   };
 
   const generateNotice = () => {
-    const validFiles = revertFiles.filter((f) => f.name.trim() !== "");
+    // Filter out rows where both name and link are empty
+    const validFiles = revertFiles.filter(
+      (f) =>
+        (f.name && f.name.trim() !== "") || (f.link && f.link.trim() !== "")
+    );
     if (validFiles.length === 0)
-      return alert("Please enter at least one Filename.");
+      return alert("Please enter at least one File Name or Link.");
 
-    const namesText = validFiles.map((f) => f.name).join("\n");
-    const noticeText = `REVERT REQUESTS\nFilename:\n${namesText}\n\nCurrent Stage: ${currentStage}\nTarget Stage: ${targetStage}\nReason: ${reason}`;
+    const namesText = validFiles.map((f) => f.name || "").join("\n");
+    const linksText = validFiles.map((f) => f.link || "").join("\n");
+
+    // UPDATE: Included File Link in the Discord output
+    const noticeText = `REVERT REQUESTS\nFilename:\n${namesText}\n\nFile Link:\n${linksText}\n\nCurrent Stage: ${currentStage}\nTarget Stage: ${targetStage}\nReason: ${reason}`;
     setOutput(noticeText);
   };
 
@@ -55,7 +65,7 @@ export default function RevertRequest({ revertFiles, setRevertFiles }) {
 
   const clearDraft = () => {
     if (window.confirm("Clear the current draft?")) {
-      setRevertFiles([{ name: "" }]);
+      setRevertFiles([{ name: "", link: "" }]);
       setCurrentStage("");
       setTargetStage("");
       setReason("");
@@ -98,12 +108,37 @@ export default function RevertRequest({ revertFiles, setRevertFiles }) {
                     boxSizing: "border-box",
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* UPDATE: Stacked Input fields for Name and Link */}
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      minWidth: 0,
+                    }}
+                  >
                     <input
                       type="text"
                       placeholder={`File ${index + 1} Name`}
-                      value={file.name}
-                      onChange={(e) => handleFileChange(index, e.target.value)}
+                      value={file.name || ""}
+                      onChange={(e) =>
+                        handleFileChange(index, "name", e.target.value)
+                      }
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "8px",
+                        fontSize: "13px",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder={`File ${index + 1} Link`}
+                      value={file.link || ""}
+                      onChange={(e) =>
+                        handleFileChange(index, "link", e.target.value)
+                      }
                       style={{
                         width: "100%",
                         boxSizing: "border-box",
@@ -112,10 +147,11 @@ export default function RevertRequest({ revertFiles, setRevertFiles }) {
                       }}
                     />
                   </div>
+
                   <button
                     className="delete-btn"
                     onClick={() => removeFileRow(index)}
-                    style={{ padding: "10px 12px" }}
+                    style={{ padding: "12px 10px", height: "100%" }}
                   >
                     X
                   </button>
