@@ -5,6 +5,8 @@ import FileRenamer from "./components/FileRenamer";
 import TatNotice from "./components/TatNotice";
 import RevertRequest from "./components/RevertRequest";
 import NonEnglish from "./components/NonEnglish";
+import CorrectionNotice from "./components/CorrectionNotice";
+import MusicLog from "./components/MusicLog";
 
 function App() {
   const [activeTab, setActiveTab] = useState(
@@ -15,16 +17,23 @@ function App() {
     const saved = localStorage.getItem("sharedFiles");
     return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
   });
-
-  // NEW: Global memory for Revert and Non-English files
   const [revertFiles, setRevertFiles] = useState(() => {
     const saved = localStorage.getItem("revertFiles");
     return saved ? JSON.parse(saved) : [{ name: "" }];
   });
-
   const [nonEngFiles, setNonEngFiles] = useState(() => {
     const saved = localStorage.getItem("nonEngFiles");
     return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
+  });
+
+  // NEW: Memory for Correction Notice and Music Log
+  const [correctionFiles, setCorrectionFiles] = useState(() => {
+    const saved = localStorage.getItem("correctionFiles");
+    return saved ? JSON.parse(saved) : [{ name: "", link: "" }];
+  });
+  const [musicFiles, setMusicFiles] = useState(() => {
+    const saved = localStorage.getItem("musicFiles");
+    return saved ? JSON.parse(saved) : [{ name: "", link: "", length: "" }];
   });
 
   useEffect(() => localStorage.setItem("activeTab", activeTab), [activeTab]);
@@ -40,10 +49,18 @@ function App() {
     () => localStorage.setItem("nonEngFiles", JSON.stringify(nonEngFiles)),
     [nonEngFiles]
   );
+  useEffect(
+    () =>
+      localStorage.setItem("correctionFiles", JSON.stringify(correctionFiles)),
+    [correctionFiles]
+  );
+  useEffect(
+    () => localStorage.setItem("musicFiles", JSON.stringify(musicFiles)),
+    [musicFiles]
+  );
 
   return (
     <div className="container">
-      {/* Added flexWrap so the 5 buttons stack neatly on mobile */}
       <div className="tabs" style={{ flexWrap: "wrap" }}>
         <button
           className={`tab-btn ${activeTab === "calculator" ? "active" : ""}`}
@@ -61,33 +78,44 @@ function App() {
           className={`tab-btn ${activeTab === "tat" ? "active" : ""}`}
           onClick={() => setActiveTab("tat")}
         >
-          TAT Delay Notice
+          TAT Delay
         </button>
         <button
           className={`tab-btn ${activeTab === "revert" ? "active" : ""}`}
           onClick={() => setActiveTab("revert")}
         >
-          Revert Request
+          Revert
         </button>
         <button
           className={`tab-btn ${activeTab === "nonenglish" ? "active" : ""}`}
           onClick={() => setActiveTab("nonenglish")}
         >
-          Non-English
+          Non-Eng
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "correction" ? "active" : ""}`}
+          onClick={() => setActiveTab("correction")}
+        >
+          Correction
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "music" ? "active" : ""}`}
+          onClick={() => setActiveTab("music")}
+        >
+          Music Log
         </button>
       </div>
 
       {activeTab === "calculator" && <AudioCalculator />}
-
-      {/* Pass all the teleport functions down to the Renamer */}
       {activeTab === "renamer" && (
         <FileRenamer
           setSharedFiles={setSharedFiles}
           setRevertFiles={setRevertFiles}
           setNonEngFiles={setNonEngFiles}
+          setCorrectionFiles={setCorrectionFiles}
+          setMusicFiles={setMusicFiles}
         />
       )}
-
       {activeTab === "tat" && (
         <TatNotice sharedFiles={sharedFiles} setSharedFiles={setSharedFiles} />
       )}
@@ -99,6 +127,15 @@ function App() {
       )}
       {activeTab === "nonenglish" && (
         <NonEnglish nonEngFiles={nonEngFiles} setNonEngFiles={setNonEngFiles} />
+      )}
+      {activeTab === "correction" && (
+        <CorrectionNotice
+          correctionFiles={correctionFiles}
+          setCorrectionFiles={setCorrectionFiles}
+        />
+      )}
+      {activeTab === "music" && (
+        <MusicLog musicFiles={musicFiles} setMusicFiles={setMusicFiles} />
       )}
     </div>
   );

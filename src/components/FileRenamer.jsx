@@ -54,10 +54,13 @@ const clearVault = async () => {
 // ==========================================
 // THE REACT COMPONENT
 // ==========================================
+// UPDATE: Added setCorrectionFiles and setMusicFiles to props
 export default function FileRenamer({
   setSharedFiles,
   setRevertFiles,
   setNonEngFiles,
+  setCorrectionFiles,
+  setMusicFiles,
 }) {
   const [lastName, setLastName] = useState(
     () => localStorage.getItem("rn_lastName") || ""
@@ -74,7 +77,6 @@ export default function FileRenamer({
   const [copiedId, setCopiedId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -176,7 +178,6 @@ export default function FileRenamer({
     await deleteFromVault(id);
     saveFilesMetadata(renamedFiles.filter((f) => f.id !== id));
   };
-
   const clearAll = async () => {
     if (window.confirm("Are you sure you want to clear all renamed files?")) {
       await clearVault();
@@ -197,14 +198,14 @@ export default function FileRenamer({
       .catch(() => alert("Failed to copy."));
   };
 
-  // UPDATE: Removed TAT from the routing options
+  // UPDATE: Routing now handles Correction and Music Log
   const routeFile = (originalName, destination) => {
     const baseName =
       originalName.substring(0, originalName.lastIndexOf(".")) || originalName;
     if (destination === "revert") {
       setRevertFiles((prev) => [
         ...prev.filter((f) => f.name.trim() !== ""),
-        { name: baseName },
+        { name: baseName, link: "" },
       ]);
       alert(`Sent "${baseName}" to Revert Requests!`);
     } else if (destination === "noneng") {
@@ -213,10 +214,21 @@ export default function FileRenamer({
         { name: baseName, link: "" },
       ]);
       alert(`Sent "${baseName}" to Non-English Files!`);
+    } else if (destination === "correction") {
+      setCorrectionFiles((prev) => [
+        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
+        { name: baseName, link: "" },
+      ]);
+      alert(`Sent "${baseName}" to Correction Notice!`);
+    } else if (destination === "music") {
+      setMusicFiles((prev) => [
+        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
+        { name: baseName, link: "", length: "" },
+      ]);
+      alert(`Sent "${baseName}" to Music Log!`);
     }
   };
 
-  // --- SORTING & PAGINATION LOGIC ---
   const sortedFiles = [...renamedFiles].sort((a, b) => {
     if (sortBy === "latest") return b.id.localeCompare(a.id);
     if (sortBy === "oldest") return a.id.localeCompare(b.id);
@@ -228,11 +240,8 @@ export default function FileRenamer({
   });
 
   const totalPages = Math.ceil(sortedFiles.length / rowsPerPage) || 1;
-
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [sortedFiles.length, totalPages, currentPage]);
 
   const indexOfLastFile = currentPage * rowsPerPage;
@@ -477,14 +486,15 @@ export default function FileRenamer({
                         </button>
                       </div>
 
-                      {/* UPDATE: Removed TAT from the quick route buttons */}
+                      {/* UPDATE: Added Correction and Music buttons */}
                       <div
                         style={{
                           display: "flex",
-                          gap: "6px",
+                          gap: "4px",
                           alignItems: "center",
                           borderTop: "1px dashed var(--border-color)",
                           paddingTop: "6px",
+                          flexWrap: "wrap",
                         }}
                       >
                         <span
@@ -493,6 +503,8 @@ export default function FileRenamer({
                             color: "var(--text-muted)",
                             textTransform: "uppercase",
                             fontWeight: "bold",
+                            width: "100%",
+                            marginBottom: "4px",
                           }}
                         >
                           Route To:
@@ -501,7 +513,7 @@ export default function FileRenamer({
                           className="action-btn"
                           onClick={() => routeFile(file.originalName, "revert")}
                           style={{
-                            fontSize: "11px",
+                            fontSize: "10px",
                             padding: "4px",
                             backgroundColor: "transparent",
                             color: "var(--accent-pink)",
@@ -515,7 +527,7 @@ export default function FileRenamer({
                           className="action-btn"
                           onClick={() => routeFile(file.originalName, "noneng")}
                           style={{
-                            fontSize: "11px",
+                            fontSize: "10px",
                             padding: "4px",
                             backgroundColor: "transparent",
                             color: "var(--accent-red)",
@@ -523,7 +535,37 @@ export default function FileRenamer({
                             flex: 1,
                           }}
                         >
-                          Non-Eng
+                          NonEng
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={() =>
+                            routeFile(file.originalName, "correction")
+                          }
+                          style={{
+                            fontSize: "10px",
+                            padding: "4px",
+                            backgroundColor: "transparent",
+                            color: "var(--accent-purple)",
+                            border: "1px solid var(--border-color)",
+                            flex: 1,
+                          }}
+                        >
+                          Correct
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={() => routeFile(file.originalName, "music")}
+                          style={{
+                            fontSize: "10px",
+                            padding: "4px",
+                            backgroundColor: "transparent",
+                            color: "var(--accent-green)",
+                            border: "1px solid var(--border-color)",
+                            flex: 1,
+                          }}
+                        >
+                          Music
                         </button>
                       </div>
                     </div>
@@ -592,7 +634,6 @@ export default function FileRenamer({
             >
               Prev
             </button>
-
             <span
               style={{
                 fontSize: "12px",
@@ -602,7 +643,6 @@ export default function FileRenamer({
             >
               Page {currentPage} of {totalPages}
             </span>
-
             <button
               className="action-btn"
               disabled={currentPage === totalPages}
