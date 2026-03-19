@@ -1,60 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-// ==========================================
-// INDEXED-DB VAULT MANAGER
-// ==========================================
-const DB_NAME = "TranscriptionVault";
-const STORE_NAME = "docxFiles";
-const initDB = () =>
-  new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = (e) => {
-      if (!e.target.result.objectStoreNames.contains(STORE_NAME))
-        e.target.result.createObjectStore(STORE_NAME);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-const saveToVault = async (id, data) => {
-  const db = await initDB();
-  return new Promise((r) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(data, id);
-    tx.oncomplete = () => r();
-  });
-};
-const getFromVault = async (id) => {
-  const db = await initDB();
-  return new Promise((r) => {
-    const req = db
-      .transaction(STORE_NAME, "readonly")
-      .objectStore(STORE_NAME)
-      .get(id);
-    req.onsuccess = () => r(req.result);
-    req.onerror = () => r(null);
-  });
-};
-const deleteFromVault = async (id) => {
-  const db = await initDB();
-  return new Promise((r) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete(id);
-    tx.oncomplete = () => r();
-  });
-};
-const clearVault = async () => {
-  const db = await initDB();
-  return new Promise((r) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).clear();
-    tx.oncomplete = () => r();
-  });
-};
-
-// ==========================================
-// THE REACT COMPONENT
-// ==========================================
-// UPDATE: Added setCorrectionFiles and setMusicFiles to props
 export default function FileRenamer({
   setSharedFiles,
   setRevertFiles,
@@ -62,55 +7,34 @@ export default function FileRenamer({
   setCorrectionFiles,
   setMusicFiles,
 }) {
-  const [lastName, setLastName] = useState(
-    () => localStorage.getItem("rn_lastName") || ""
-  );
-  const [firstName, setFirstName] = useState(
-    () => localStorage.getItem("rn_firstName") || ""
-  );
-  const [startNum, setStartNum] = useState(() => {
-    const s = localStorage.getItem("rn_startNum");
-    return s !== null ? parseInt(s, 10) : 1;
-  });
-  const [renamedFiles, setRenamedFiles] = useState([]);
-  const fileInputRef = useRef(null);
+  // Universal Input States
+  const [fileName, setFileName] = useState("");
+  const [fileLink, setFileLink] = useState("");
+  const [fileDetail, setFileDetail] = useState(""); // Serves as the Reason OR the File Length
+
+  // Hub Storage State
+  const [hubFiles, setHubFiles] = useState([]);
+
+  // UI States
   const [copiedId, setCopiedId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Load saved hub files on startup
   useEffect(() => {
-    localStorage.setItem("rn_lastName", lastName);
-    localStorage.setItem("rn_firstName", firstName);
-    localStorage.setItem("rn_startNum", startNum);
-  }, [lastName, firstName, startNum]);
-
-  useEffect(() => {
-    const s = localStorage.getItem("transcriptionRenamerData");
-    if (s) setRenamedFiles(JSON.parse(s));
+    const saved = localStorage.getItem("transcriptionHubData");
+    if (saved) setHubFiles(JSON.parse(saved));
   }, []);
 
-  const saveFilesMetadata = (newFiles) => {
-    setRenamedFiles(newFiles);
-    localStorage.setItem("transcriptionRenamerData", JSON.stringify(newFiles));
+  const saveToHub = (newFiles) => {
+    setHubFiles(newFiles);
+    localStorage.setItem("transcriptionHubData", JSON.stringify(newFiles));
   };
 
-  const processFiles = () => {
-    const files = fileInputRef.current.files;
-    if (files.length === 0)
-      return alert("Please select at least one .docx file first!");
+  const addFileToHub = () => {
+    if (!fileName.trim()) return alert("Please enter a File Name first!");
 
-    const dateStr = new Date()
-      .toLocaleDateString("en-US", {
-        month: "2-digit",
-        day: "2-digit",
-        year: "2-digit",
-      })
-      .replace(/\//g, "");
-    let currentNum = parseInt(startNum) || 1;
-    let newFilesList = [...renamedFiles];
-    let extractedNames = [];
     const phTime = new Date().toLocaleString("en-US", {
       timeZone: "Asia/Manila",
       month: "short",
@@ -121,76 +45,40 @@ export default function FileRenamer({
       hour12: true,
     });
 
-    Array.from(files).forEach((file, index) => {
-      if (!file.name.toLowerCase().endsWith(".docx")) return;
-      const newName = `${dateStr} - ${lastName}, ${firstName} - ${currentNum}.docx`;
-      currentNum++;
+    const newFile = {
+      id: Date.now().toString(),
+      name: fileName.trim(),
+      link: fileLink.trim(),
+      detail: fileDetail.trim(),
+      generatedAt: phTime,
+    };
 
-      const baseName =
-        file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-      extractedNames.push(baseName);
+    saveToHub([newFile, ...hubFiles]);
 
-      const fileId = Date.now().toString() + String(index).padStart(3, "0");
-      const reader = new FileReader();
-      reader.onload = async (e) => await saveToVault(fileId, e.target.result);
-      reader.readAsDataURL(file);
-
-      newFilesList.push({
-        id: fileId,
-        originalName: file.name,
-        newName,
-        generatedAt: phTime,
-      });
-    });
-
-    saveFilesMetadata(newFilesList);
-
-    if (extractedNames.length > 0) {
-      setSharedFiles((prev) => {
-        const filtered = prev.filter(
-          (f) => f.name.trim() !== "" || f.link.trim() !== ""
-        );
-        return [
-          ...filtered,
-          ...extractedNames.map((name) => ({ name, link: "" })),
-        ];
-      });
-    }
-
-    setStartNum(currentNum);
-    fileInputRef.current.value = "";
-    setCurrentPage(1);
+    // Clear inputs after adding
+    setFileName("");
+    setFileLink("");
+    setFileDetail("");
+    setCurrentPage(1); // Snap to page 1 to see the new entry
   };
 
-  const handleDownload = async (id, newName) => {
-    const fileData = await getFromVault(id);
-    if (!fileData)
-      return alert("File not found! It may have been cleared or corrupted.");
-    const link = document.createElement("a");
-    link.href = fileData;
-    link.download = newName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const deleteFile = (id) => saveToHub(hubFiles.filter((f) => f.id !== id));
 
-  const deleteFile = async (id) => {
-    await deleteFromVault(id);
-    saveFilesMetadata(renamedFiles.filter((f) => f.id !== id));
-  };
-  const clearAll = async () => {
-    if (window.confirm("Are you sure you want to clear all renamed files?")) {
-      await clearVault();
-      saveFilesMetadata([]);
-      setStartNum(1);
+  const clearAll = () => {
+    if (
+      window.confirm(
+        "Are you sure you want to clear all files from the Universal Hub?"
+      )
+    ) {
+      saveToHub([]);
       setCurrentPage(1);
     }
   };
 
-  const copyOriginalName = (name, id) => {
-    const baseName = name.substring(0, name.lastIndexOf("."));
+  const copyText = (text, id) => {
+    if (!text) return;
     navigator.clipboard
-      .writeText(baseName || name)
+      .writeText(text)
       .then(() => {
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -198,44 +86,54 @@ export default function FileRenamer({
       .catch(() => alert("Failed to copy."));
   };
 
-  // UPDATE: Routing now handles Correction and Music Log
-  const routeFile = (originalName, destination) => {
-    const baseName =
-      originalName.substring(0, originalName.lastIndexOf(".")) || originalName;
-    if (destination === "revert") {
-      setRevertFiles((prev) => [
-        ...prev.filter((f) => f.name.trim() !== ""),
-        { name: baseName, link: "" },
+  // The Universal Teleporter
+  const routeFile = (file, destination) => {
+    // Helper to remove totally empty default rows before adding the new one
+    const filterEmpty = (prev) =>
+      prev.filter(
+        (f) => f.name.trim() !== "" || (f.link && f.link.trim() !== "")
+      );
+
+    if (destination === "tat") {
+      setSharedFiles((prev) => [
+        ...filterEmpty(prev),
+        { name: file.name, link: file.link },
       ]);
-      alert(`Sent "${baseName}" to Revert Requests!`);
+      alert(`Sent to TAT Delay Notice!`);
+    } else if (destination === "revert") {
+      setRevertFiles((prev) => [
+        ...filterEmpty(prev),
+        { name: file.name, link: file.link },
+      ]);
+      alert(`Sent to Revert Requests!`);
     } else if (destination === "noneng") {
       setNonEngFiles((prev) => [
-        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
-        { name: baseName, link: "" },
+        ...filterEmpty(prev),
+        { name: file.name, link: file.link },
       ]);
-      alert(`Sent "${baseName}" to Non-English Files!`);
+      alert(`Sent to Non-English Files!`);
     } else if (destination === "correction") {
       setCorrectionFiles((prev) => [
-        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
-        { name: baseName, link: "" },
+        ...filterEmpty(prev),
+        { name: file.name, link: file.link },
       ]);
-      alert(`Sent "${baseName}" to Correction Notice!`);
+      alert(`Sent to Correction Notice!`);
     } else if (destination === "music") {
+      // Notice how 'file.detail' maps directly to 'length' for the Music Log!
       setMusicFiles((prev) => [
-        ...prev.filter((f) => f.name.trim() !== "" || f.link.trim() !== ""),
-        { name: baseName, link: "", length: "" },
+        ...filterEmpty(prev),
+        { name: file.name, link: file.link, length: file.detail },
       ]);
-      alert(`Sent "${baseName}" to Music Log!`);
+      alert(`Sent to Music Log!`);
     }
   };
 
-  const sortedFiles = [...renamedFiles].sort((a, b) => {
+  // --- SORTING & PAGINATION LOGIC ---
+  const sortedFiles = [...hubFiles].sort((a, b) => {
     if (sortBy === "latest") return b.id.localeCompare(a.id);
     if (sortBy === "oldest") return a.id.localeCompare(b.id);
-    if (sortBy === "name-asc")
-      return a.originalName.localeCompare(b.originalName);
-    if (sortBy === "name-desc")
-      return b.originalName.localeCompare(a.originalName);
+    if (sortBy === "name-asc") return a.name.localeCompare(b.name);
+    if (sortBy === "name-desc") return b.name.localeCompare(a.name);
     return 0;
   });
 
@@ -259,91 +157,60 @@ export default function FileRenamer({
             flexWrap: "wrap",
           }}
         >
-          <h2>Docx File Renamer</h2>
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSeSEOyac74Awrgevpvi1_d4PzzakhbGvjm6qoZX9ruAs74oyQ/viewform?pli=1&pli=1"
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              color: "var(--accent-purple)",
-              textDecoration: "none",
-              fontSize: "13px",
-              fontWeight: "600",
-            }}
-          >
-            Submit Files Form ↗
-          </a>
+          <h2>Universal File Hub</h2>
+          <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+            (Distribute files to any tab)
+          </span>
         </div>
         <button className="action-btn clear-all-btn" onClick={clearAll}>
           Clear All
         </button>
       </div>
 
-      <div className="input-group">
+      {/* The New Universal Input Form */}
+      <div className="vertical-group" style={{ marginBottom: "20px" }}>
         <input
           type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
+          placeholder="File Name *"
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
         />
         <input
           type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="File Link"
+          value={fileLink}
+          onChange={(e) => setFileLink(e.target.value)}
         />
         <input
-          type="number"
-          placeholder="Start Num"
-          value={startNum}
-          onChange={(e) => setStartNum(e.target.value)}
+          type="text"
+          placeholder="Reason / File Length (Optional)"
+          value={fileDetail}
+          onChange={(e) => setFileDetail(e.target.value)}
         />
-        <div
-          className="mobile-stack"
-          style={{
-            width: "100%",
-            marginTop: "10px",
-            display: "flex",
-            alignItems: "center",
-            gap: "15px",
-          }}
+
+        <button
+          className="action-btn"
+          onClick={addFileToHub}
+          style={{ marginTop: "10px", padding: "12px", fontSize: "15px" }}
         >
-          <input
-            type="file"
-            accept=".docx"
-            multiple
-            ref={fileInputRef}
-            style={{
-              border: "none",
-              padding: 0,
-              flex: "none",
-              color: "var(--text-main)",
-            }}
-          />
-          <button
-            className="action-btn"
-            onClick={processFiles}
-            style={{ width: "100%" }}
-          >
-            Generate Renamed Files
-          </button>
-        </div>
+          + Add to Universal Hub
+        </button>
       </div>
 
       <div
         className="header"
         style={{
-          marginTop: "35px",
+          marginTop: "25px",
           borderTop: "1px dashed var(--border-color)",
           paddingTop: "20px",
         }}
       >
         <h3 style={{ margin: 0, fontSize: "18px", color: "var(--text-main)" }}>
-          Processed Files
+          Tracked Files
         </h3>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <label style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-            Sort by:
+            Sort:
           </label>
           <select
             value={sortBy}
@@ -364,8 +231,8 @@ export default function FileRenamer({
           >
             <option value="latest">Latest First</option>
             <option value="oldest">Oldest First</option>
-            <option value="name-asc">Original Name (A-Z)</option>
-            <option value="name-desc">Original Name (Z-A)</option>
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
           </select>
         </div>
       </div>
@@ -377,9 +244,9 @@ export default function FileRenamer({
         <table>
           <thead>
             <tr>
-              <th>Original File</th>
-              <th>Renamed To</th>
-              <th style={{ minWidth: "220px" }}>Actions</th>
+              <th>File Info</th>
+              <th>Reason / Length</th>
+              <th style={{ minWidth: "260px" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -393,34 +260,53 @@ export default function FileRenamer({
                     padding: "20px",
                   }}
                 >
-                  No files processed yet.
+                  No files logged yet.
                 </td>
               </tr>
             ) : (
               currentFiles.map((file) => (
                 <tr key={file.id}>
                   <td>
-                    <div style={{ fontWeight: "bold" }}>
-                      {file.originalName}
+                    <div
+                      style={{
+                        fontWeight: "bold",
+                        color: "var(--text-main)",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {file.name}
                     </div>
-                    {file.generatedAt && (
-                      <div
+                    {file.link && (
+                      <a
+                        href={file.link}
+                        target="_blank"
+                        rel="noreferrer"
                         style={{
                           fontSize: "11px",
-                          color: "var(--text-muted)",
-                          marginTop: "4px",
-                          fontStyle: "italic",
+                          color: "var(--accent-purple)",
+                          textDecoration: "none",
+                          wordBreak: "break-all",
                         }}
                       >
-                        {file.generatedAt}
-                      </div>
+                        View Link ↗
+                      </a>
                     )}
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--text-muted)",
+                        marginTop: "6px",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {file.generatedAt}
+                    </div>
                   </td>
                   <td>
                     <div
-                      style={{ color: "var(--text-main)", fontWeight: "500" }}
+                      style={{ color: "var(--text-main)", fontSize: "13px" }}
                     >
-                      {file.newName}
+                      {file.detail || "-"}
                     </div>
                   </td>
                   <td>
@@ -440,44 +326,32 @@ export default function FileRenamer({
                       >
                         <button
                           className="action-btn"
-                          onClick={() =>
-                            copyOriginalName(file.originalName, file.id)
-                          }
+                          onClick={() => copyText(file.name, `name_${file.id}`)}
                           style={{
                             backgroundColor:
-                              copiedId === file.id
+                              copiedId === `name_${file.id}`
                                 ? "var(--accent-green)"
                                 : "var(--bg-panel)",
                             color:
-                              copiedId === file.id
+                              copiedId === `name_${file.id}`
                                 ? "var(--bg-deep)"
                                 : "var(--text-main)",
                             border: "1px solid var(--border-color)",
-                            fontSize: "12px",
-                            padding: "6px 10px",
+                            fontSize: "11px",
+                            padding: "6px 8px",
                             flex: 1,
                           }}
                         >
-                          {copiedId === file.id ? "Copied! ✓" : "Copy"}
-                        </button>
-                        <button
-                          className="action-btn"
-                          onClick={() => handleDownload(file.id, file.newName)}
-                          style={{
-                            fontSize: "12px",
-                            padding: "6px 10px",
-                            border: "1px solid transparent",
-                            flex: 1,
-                          }}
-                        >
-                          Download
+                          {copiedId === `name_${file.id}`
+                            ? "Copied!"
+                            : "Copy Name"}
                         </button>
                         <button
                           className="delete-btn"
                           onClick={() => deleteFile(file.id)}
                           style={{
-                            fontSize: "12px",
-                            padding: "6px 10px",
+                            fontSize: "11px",
+                            padding: "6px 8px",
                             flex: 1,
                             margin: 0,
                           }}
@@ -486,7 +360,7 @@ export default function FileRenamer({
                         </button>
                       </div>
 
-                      {/* UPDATE: Added Correction and Music buttons */}
+                      {/* UNIVERSAL ROUTING BUTTONS */}
                       <div
                         style={{
                           display: "flex",
@@ -511,7 +385,21 @@ export default function FileRenamer({
                         </span>
                         <button
                           className="action-btn"
-                          onClick={() => routeFile(file.originalName, "revert")}
+                          onClick={() => routeFile(file, "tat")}
+                          style={{
+                            fontSize: "10px",
+                            padding: "4px",
+                            backgroundColor: "transparent",
+                            color: "var(--accent-purple)",
+                            border: "1px solid var(--border-color)",
+                            flex: 1,
+                          }}
+                        >
+                          TAT
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={() => routeFile(file, "revert")}
                           style={{
                             fontSize: "10px",
                             padding: "4px",
@@ -525,7 +413,7 @@ export default function FileRenamer({
                         </button>
                         <button
                           className="action-btn"
-                          onClick={() => routeFile(file.originalName, "noneng")}
+                          onClick={() => routeFile(file, "noneng")}
                           style={{
                             fontSize: "10px",
                             padding: "4px",
@@ -539,14 +427,12 @@ export default function FileRenamer({
                         </button>
                         <button
                           className="action-btn"
-                          onClick={() =>
-                            routeFile(file.originalName, "correction")
-                          }
+                          onClick={() => routeFile(file, "correction")}
                           style={{
                             fontSize: "10px",
                             padding: "4px",
                             backgroundColor: "transparent",
-                            color: "var(--accent-purple)",
+                            color: "var(--accent-green)",
                             border: "1px solid var(--border-color)",
                             flex: 1,
                           }}
@@ -555,12 +441,12 @@ export default function FileRenamer({
                         </button>
                         <button
                           className="action-btn"
-                          onClick={() => routeFile(file.originalName, "music")}
+                          onClick={() => routeFile(file, "music")}
                           style={{
                             fontSize: "10px",
                             padding: "4px",
                             backgroundColor: "transparent",
-                            color: "var(--accent-green)",
+                            color: "#89dceb",
                             border: "1px solid var(--border-color)",
                             flex: 1,
                           }}

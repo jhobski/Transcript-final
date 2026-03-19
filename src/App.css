@@ -45,76 +45,34 @@ table {
 }
 
 /* =========================================================
-   MOBILE SPECIFIC RULES (Phones & Small Tablets)
+   MOBILE FIX: DYNAMIC FILE ROW "X" BUTTONS
 ========================================================= */
 @media (max-width: 768px) {
-  /* Make all main containers strictly respect the screen edges */
-  .container,
-  .view-section,
-  .input-group,
-  .vertical-group {
-    padding: 12px !important;
-    width: 100%;
-    max-width: 100vw;
+  /* 1. Force the X button to be a small, non-stretching square */
+  .vertical-group .delete-btn {
+    width: 45px !important;
+    min-width: 45px !important;
+    max-width: 45px !important;
+    height: auto !important;
+    flex: 0 0 auto !important; /* Prevents it from growing or shrinking */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
-  /* Make navigation tabs stack neatly like a menu */
-  .tabs {
-    flex-direction: column !important;
-    gap: 8px;
-  }
-  .tab-btn {
-    width: 100%;
-    text-align: center;
-    border-radius: 6px;
-  }
-
-  /* Force side-by-side inputs to stack on top of each other */
-  .mobile-stack {
-    flex-direction: column !important;
+  /* 2. Protect the row from collapsing or wrapping */
+  .vertical-group > div[style*="max-height"] > div {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: stretch !important;
   }
-  .mobile-stack > * {
+
+  /* 3. Ensure the input container shrinks to fit next to the X button */
+  .vertical-group > div[style*="max-height"] > div > div {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     width: 100% !important;
-    margin: 0 !important; /* Removes gap issues */
-  }
-
-  /* Force the Split Layout into a single column */
-  .tat-split-layout {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-
-  /* Fix the Renamer List layout */
-  .renamer-list li {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  /* Stack the "Copy / Download / Remove" buttons vertically on small screens */
-  .file-actions {
-    flex-direction: column !important;
-  }
-
-  /* Quick Route Buttons Wrap neatly */
-  .file-actions > div {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  /* Ensure textareas and inputs don't stretch */
-  input,
-  textarea,
-  select {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  /* Adjust header layouts */
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
   }
 }
