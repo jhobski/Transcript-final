@@ -45,34 +45,35 @@ table {
 }
 
 /* =========================================================
-   MOBILE FIX: DYNAMIC FILE ROW "X" BUTTONS
+   UNIVERSAL FIX: DYNAMIC FILE ROW "X" BUTTONS
+   (Fixes Tablet Split-Screen stretching issues)
 ========================================================= */
-@media (max-width: 768px) {
-  /* 1. Force the X button to be a small, non-stretching square */
-  .vertical-group .delete-btn {
-    width: 45px !important;
-    min-width: 45px !important;
-    max-width: 45px !important;
-    height: auto !important;
-    flex: 0 0 auto !important; /* Prevents it from growing or shrinking */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
+/* 1. Force the row to ALWAYS stay side-by-side */
+.vertical-group div[style*="max-height"] > div {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
 
-  /* 2. Protect the row from collapsing or wrapping */
-  .vertical-group > div[style*="max-height"] > div {
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: stretch !important;
-  }
+/* 2. Lock the X button into a tiny square forever */
+.vertical-group div[style*="max-height"] > div > .delete-btn {
+  width: 45px !important;
+  min-width: 45px !important;
+  max-width: 45px !important;
+  height: auto !important;
+  flex: 0 0 45px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
 
-  /* 3. Ensure the input container shrinks to fit next to the X button */
-  .vertical-group > div[style*="max-height"] > div > div {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    width: 100% !important;
-  }
+/* 3. Protect the input fields so they safely fill the rest of the space */
+.vertical-group div[style*="max-height"] > div > div {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: calc(100% - 55px) !important;
 }
