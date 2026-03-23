@@ -352,10 +352,38 @@ tbody tr:hover {
 }
 
 /* =========================================================
+   GLOBAL RESPONSIVE SAFEGUARDS & MOBILE FIXES
+========================================================= */
+/* 1. Forces all padding and borders to stay inside the box width */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 2. Prevents the entire website from glitching sideways */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* 3. Ensure tables can scroll horizontally on small screens */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  min-width: 650px; /* Forces scrollbar instead of squishing/cutting off */
+}
+
+/* =========================================================
    UNIVERSAL FIX: DYNAMIC FILE ROW "X" BUTTONS
    (Fixes Tablet Split-Screen stretching issues)
 ========================================================= */
-/* 1. Force the row to ALWAYS stay side-by-side */
 .vertical-group div[style*="max-height"] > div {
   display: flex !important;
   flex-direction: row !important;
@@ -364,7 +392,6 @@ tbody tr:hover {
   width: 100% !important;
 }
 
-/* 2. Lock the X button into a tiny square forever */
 .vertical-group div[style*="max-height"] > div > .delete-btn {
   width: 45px !important;
   min-width: 45px !important;
@@ -378,9 +405,46 @@ tbody tr:hover {
   margin: 0 !important;
 }
 
-/* 3. Protect the input fields so they safely fill the rest of the space */
 .vertical-group div[style*="max-height"] > div > div {
   flex: 1 1 auto !important;
   min-width: 0 !important;
   width: calc(100% - 55px) !important;
+}
+
+/* =========================================================
+   MOBILE SPECIFIC RULES (Phones & Small Tablets)
+========================================================= */
+@media (max-width: 768px) {
+  /* Force side-by-side inputs (like the Generator button) to stack */
+  .mobile-stack,
+  .input-group {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-stack > *,
+  .input-group > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Stack file actions vertically */
+  .file-actions {
+    flex-direction: column !important;
+  }
+
+  /* Force the Split Layout into a single column */
+  .tat-split-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Make tabs wrap neatly */
+  .tabs {
+    flex-direction: column !important;
+  }
+  .tab-btn {
+    width: 100%;
+  }
 }
