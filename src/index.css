@@ -351,87 +351,36 @@ tbody tr:hover {
   align-items: start;
 }
 
-/* --- MOBILE RESPONSIVENESS (Phones & Small Tablets) --- */
-@media (max-width: 768px) {
-  body {
-    padding: 10px;
-  }
+/* =========================================================
+   UNIVERSAL FIX: DYNAMIC FILE ROW "X" BUTTONS
+   (Fixes Tablet Split-Screen stretching issues)
+========================================================= */
+/* 1. Force the row to ALWAYS stay side-by-side */
+.vertical-group div[style*="max-height"] > div {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
 
-  .container {
-    padding: 15px;
-  }
+/* 2. Lock the X button into a tiny square forever */
+.vertical-group div[style*="max-height"] > div > .delete-btn {
+  width: 45px !important;
+  min-width: 45px !important;
+  max-width: 45px !important;
+  height: auto !important;
+  flex: 0 0 45px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
 
-  /* Make tabs stack vertically instead of side-by-side */
-  .tabs {
-    flex-direction: column;
-    gap: 10px;
-  }
-  .tab-btn {
-    width: 100%;
-    text-align: center;
-  }
-
-  /* Stack headers and totals */
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .summary {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .summary span {
-    margin-left: 0;
-  }
-
-  /* Make inputs and buttons full width */
-  .quick-calc-bar,
-  .input-group,
-  .vertical-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .input-group input,
-  .vertical-group input,
-  button {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Fix the file upload row in the Renamer */
-  .input-group > div {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
-
-  /* Add horizontal scroll to tables so they don't break the screen */
-  .table-container {
-    overflow-x: auto;
-  }
-  table {
-    min-width: 500px; /* Forces table to be scrollable if screen is too small */
-  }
-
-  /* Stack the Renamer list items */
-  .renamer-list li {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  .file-actions {
-    width: 100%;
-    display: flex;
-    justify-content: stretch;
-  }
-  .file-actions > * {
-    flex: 1;
-    text-align: center;
-  }
-
-  /* Force the TAT Notice split screen to stack into one column */
-  .tat-split-layout {
-    grid-template-columns: 1fr;
-  }
+/* 3. Protect the input fields so they safely fill the rest of the space */
+.vertical-group div[style*="max-height"] > div > div {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: calc(100% - 55px) !important;
 }
